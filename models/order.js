@@ -1,31 +1,51 @@
 import mongoose from "mongoose";
 
-const orderItemSchema = new mongoose.Schema({
-  product: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Product",
-    required: true,
+/* ================= ORDER ITEM SCHEMA ================= */
+const orderItemSchema = new mongoose.Schema(
+  {
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
+    vendor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    status: {
+      type: String,
+      enum: ["processing", "shipped", "delivered", "cancelled"],
+      default: "processing",
+    },
   },
-  vendor: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
-  quantity: {
-    type: Number,
-    required: true,
-  },
-  price: {
-    type: Number,
-    required: true,
-  },
-  status: {
-    type: String,
-    enum: ["processing", "shipped", "delivered"],
-    default: "processing",
-  },
-});
+  { _id: true }
+);
 
+/* ================= SHIPPING ADDRESS SCHEMA ================= */
+const shippingAddressSchema = new mongoose.Schema(
+  {
+    fullName: { type: String, required: true, trim: true },
+    phone: { type: String, required: true },
+    addressLine: { type: String, required: true },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    postalCode: { type: String, required: true },
+  },
+  { _id: false }
+);
+
+/* ================= MAIN ORDER SCHEMA ================= */
 const orderSchema = new mongoose.Schema(
   {
     user: {
@@ -34,15 +54,14 @@ const orderSchema = new mongoose.Schema(
       required: true,
     },
 
-    items: [orderItemSchema],
+    items: {
+      type: [orderItemSchema],
+      required: true,
+    },
 
     shippingAddress: {
-      fullName: String,
-      phone: String,
-      addressLine: String,
-      city: String,
-      state: String,
-      postalCode: String,
+      type: shippingAddressSchema,
+      required: true,
     },
 
     paymentMethod: {
@@ -53,19 +72,31 @@ const orderSchema = new mongoose.Schema(
 
     paymentStatus: {
       type: String,
-      enum: ["paid", "pending", "cod"],
-      default: "pending",
+      enum: ["paid", "cod"],
+      required: true,
     },
 
     totalAmount: {
       type: Number,
       required: true,
+      min: 0,
+    },
+
+    // 🔥 NEW FIELD
+    orderStatus: {
+      type: String,
+      enum: ["processing", "shipped", "delivered", "cancelled"],
+      default: "processing",
+    },
+
+    // 🔥 NEW FIELD
+    estimatedDelivery: {
+      type: Date,
     },
   },
   { timestamps: true }
 );
 
-// 👇 THIS LINE WAS PROBABLY MISSING
 const Order = mongoose.model("Order", orderSchema);
 
 export default Order;

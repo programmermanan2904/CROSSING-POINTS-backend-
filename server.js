@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 import userRoutes from "./routes/userRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
+import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 
 dotenv.config();
 
@@ -33,7 +34,11 @@ app.get("/", (req, res) => {
 /* ================== ROUTES ================== */
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
-app.use("/api/orders", orderRoutes);   // 🔥 MOVE THIS HERE
+app.use("/api/orders", orderRoutes);
+
+/* ================== ERROR MIDDLEWARE (IMPORTANT) ================== */
+app.use(notFound);      // 404 handler
+app.use(errorHandler);  // Global error handler
 
 /* ================== DATABASE ================== */
 mongoose.connect(process.env.MONGO_URI)
