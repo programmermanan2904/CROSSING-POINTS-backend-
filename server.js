@@ -15,7 +15,17 @@ dotenv.config();
 const app = express();
 
 /* ================== MIDDLEWARE ================== */
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://crossing-points-e-commerce-website.vercel.app"
+    ],
+    credentials: true,
+  })
+);
+
+app.options("*", cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
