@@ -17,10 +17,17 @@ const app = express();
 /* ================== MIDDLEWARE ================== */
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://crossing-points-e-commerce-website.vercel.app"
-    ],
+    origin: function (origin, callback) {
+      if (
+        !origin || 
+        origin.includes("localhost") ||
+        origin.includes("vercel.app")
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
