@@ -4,11 +4,12 @@ import {
   getAllProducts,
   getVendorProducts,
   addProduct,
-  deleteProduct
+  updateProduct,
+  deleteProduct,
 } from "../controllers/productController.js";
 
 import protect, { authorize } from "../middleware/authMiddleware.js";
-import upload from "../middleware/uploadMiddleware.js";
+import upload from "../middleware/upload.js";
 
 const router = express.Router();
 
@@ -16,14 +17,19 @@ const router = express.Router();
 router.get("/", getAllProducts);
 
 /* ================= GET VENDOR PRODUCTS ================= */
-router.get("/vendor", protect, authorize("vendor"), getVendorProducts);
+router.get(
+  "/vendor",
+  protect,
+  authorize("vendor"),
+  getVendorProducts
+);
 
 /* ================= ADD PRODUCT ================= */
 router.post(
   "/",
   protect,
   authorize("vendor"),
-  upload.single("image"),
+  upload.single("image"), // image required here
   [
     body("name")
       .trim()
@@ -44,6 +50,15 @@ router.post(
       .withMessage("Category is required"),
   ],
   addProduct
+);
+
+/* ================= UPDATE PRODUCT ================= */
+router.put(
+  "/:id",
+  protect,
+  authorize("vendor"),
+  upload.single("image"), // image optional during update
+  updateProduct
 );
 
 /* ================= DELETE PRODUCT ================= */

@@ -1,14 +1,16 @@
 import express from "express";
 import { body } from "express-validator";
+
+import protect, { authorize } from "../middleware/authMiddleware.js";
+
 import {
   createOrder,
   getUserOrders,
   getVendorOrders,
   updateOrderItemStatus,
-  cancelOrder, // 🔥 added
+  cancelOrder,
+  getVendorAnalytics,   // ✅ included properly
 } from "../controllers/orderController.js";
-
-import protect, { authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -66,17 +68,27 @@ router.post(
 // Get Logged-in User Orders
 router.get("/my", protect, getUserOrders);
 
-// 🔥 Cancel Order
-router.put(
-  "/:id/cancel",
-  protect,
-  cancelOrder
-);
+// Cancel Order (Hard Delete)
+router.put("/:id/cancel", protect, cancelOrder);
+
 
 /* ================= VENDOR ROUTES ================= */
 
 // Get Vendor Orders
-router.get("/vendor", protect, authorize("vendor"), getVendorOrders);
+router.get(
+  "/vendor",
+  protect,
+  authorize("vendor"),
+  getVendorOrders
+);
+
+// ✅ Vendor Analytics Route
+router.get(
+  "/vendor/analytics",
+  protect,
+  authorize("vendor"),
+  getVendorAnalytics
+);
 
 // Update Order Item Status
 router.put(
@@ -85,7 +97,7 @@ router.put(
   authorize("vendor"),
   [
     body("status")
-      .isIn(["processing", "shipped", "delivered", "cancelled"])
+      .isIn(["processing", "shipped", "delivered"])
       .withMessage("Invalid status value"),
   ],
   updateOrderItemStatus
