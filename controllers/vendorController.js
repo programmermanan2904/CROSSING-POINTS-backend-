@@ -32,24 +32,22 @@ export const getVendorDashboard = async (req, res) => {
         totalOrders++;
 
         vendorItems.forEach((item) => {
-          const status = item.status?.toLowerCase(); // 🔥 normalize status
+          const status = item.status?.toLowerCase();
 
-          // Safe status counting
           if (statusCounts.hasOwnProperty(status)) {
             statusCounts[status]++;
           }
 
-          // Revenue only for delivered
           if (status === "delivered") {
-            totalRevenue += item.price * item.quantity;
+            const revenue = item.price * item.quantity;
+            totalRevenue += revenue;
 
             const month = new Date(order.createdAt).toLocaleString("default", {
               month: "short",
             });
 
             monthlyRevenueMap[month] =
-              (monthlyRevenueMap[month] || 0) +
-              item.price * item.quantity;
+              (monthlyRevenueMap[month] || 0) + revenue;
           }
 
           if (status === "cancelled") cancelledOrders++;
@@ -80,9 +78,56 @@ export const getVendorDashboard = async (req, res) => {
       topProducts,
       lowStockProducts,
     });
-
   } catch (error) {
     console.error("Dashboard error:", error.message);
     res.status(500).json({ message: "Dashboard fetch failed" });
+  }
+};
+
+/* ================= UPDATE ORDER ITEM STATUS ================= */
+export const updateOrderItemStatus = async (req, res) => {
+  try {
+    const { orderId, itemId, status } = req.body;
+    const vendorId = req.user._id;
+
+    if (!orderId || !itemId || !status) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const item = order.items.find(
+      (i) =>
+        i._id.toString() === itemId &&
+        i.vendor.toString() === vendorId.toString()
+    );
+
+    if (!item) {
+      return res
+        .status(404)
+        .json({ message: "Item not found for this vendor" });
+    }
+
+    const previousStatus = item.status?.toLowerCase();
+    item.status = status.toLowerCase();
+
+    // 🔥 If changing to delivered, update product sold count
+    if (status.toLowerCase() === "delivered" && previousStatus !== "delivered") {
+      const product = await Product.findById(item.product);
+      if (product) {
+        product.sold += item.quantity;
+        await product.save();
+      }
+    }
+
+    await order.save();
+
+    res.json({ message: "Order item status updated successfully" });
+  } catch (error) {
+    console.error("Status update error:", error.message);
+    res.status(500).json({ message: "Failed to update status" });
   }
 };

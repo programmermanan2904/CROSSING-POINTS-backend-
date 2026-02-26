@@ -5,15 +5,22 @@ import {
   updateOrderItemStatus 
 } from "../controllers/vendorController.js";
 
-
 const router = express.Router();
 
 /* ================== VENDOR DASHBOARD ================== */
 router.get(
   "/dashboard",
   protect,
-  authorize("vendor"), // Only vendor role allowed
+  authorize("vendor"),
   getVendorDashboard
+);
+
+/* ================== UPDATE ORDER ITEM STATUS ================== */
+router.put(
+  "/update-status",
+  protect,
+  authorize("vendor"),
+  updateOrderItemStatus
 );
 
 export default router;
