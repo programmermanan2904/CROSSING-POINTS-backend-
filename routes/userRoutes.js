@@ -1,6 +1,9 @@
 import express from "express";
 import { body } from "express-validator";
-import { registerUser, loginUser } from "../controllers/userController.js";
+import {
+  registerUser,
+  loginUser,
+} from "../controllers/userController.js";
 
 const router = express.Router();
 
@@ -63,5 +66,7 @@ router.post(
   ],
   loginUser
 );
+
+router.post("/verify-otp", );
 
 export default router;

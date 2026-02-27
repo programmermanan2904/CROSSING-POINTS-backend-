@@ -2,11 +2,11 @@ import User from "../models/user.js";
 import bcrypt from "bcryptjs";
 import generateToken from "../utils/generateToken.js";
 import { validationResult } from "express-validator";
+import { sendOTP, verifyOTP } from "../utils/twilio.js";
 
 // ================= REGISTER =================
 const registerUser = async (req, res) => {
   try {
-    // 🔹 Handle validation errors from express-validator
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -37,7 +37,7 @@ const registerUser = async (req, res) => {
     // 🔹 Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 🔹 Create user
+    // 🔹 Create user (NOT VERIFIED initially)
     const user = await User.create({
       name,
       email,
@@ -47,23 +47,16 @@ const registerUser = async (req, res) => {
       businessName: role === "vendor" ? businessName : undefined,
       gstNumber: role === "vendor" ? gstNumber : undefined,
       location: role === "vendor" ? location : undefined,
+      isVerified: false,
     });
 
-    if (user) {
-      res.status(201).json({
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-        token: generateToken(user._id),
-      });
-    } else {
-      res.status(400).json({
-        message: "Invalid user data",
-      });
-    }
+    // 🔐 Send OTP using Twilio
+    await sendOTP(phone);
+
+    res.status(201).json({
+      message: "OTP sent to your phone. Please verify.",
+      phone: user.phone,
+    });
 
   } catch (error) {
     console.error("REGISTER ERROR:", error);
@@ -76,7 +69,6 @@ const registerUser = async (req, res) => {
 // ================= LOGIN =================
 const loginUser = async (req, res) => {
   try {
-    // 🔹 Handle validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -93,6 +85,13 @@ const loginUser = async (req, res) => {
         message: "Invalid email or password",
       });
     }
+
+    // 🔐 Block login if not verified
+    // if (!user.isVerified) {
+    //   return res.status(403).json({
+    //     message: "Please verify your phone number first",
+    //   });
+    // }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
@@ -119,5 +118,41 @@ const loginUser = async (req, res) => {
     });
   }
 };
+
+// // ================= VERIFY OTP =================
+// const verifyUserOTP = async (req, res) => {
+//   const { phone, code } = req.body;
+
+//   try {
+//     const verification = await verifyOTP(phone, code);
+
+//     if (verification.status === "approved") {
+//       const user = await User.findOne({ phone });
+
+//       if (!user) {
+//         return res.status(404).json({
+//           message: "User not found",
+//         });
+//       }
+
+//       user.isVerified = true;
+//       await user.save();
+
+//       return res.status(200).json({
+//         message: "Phone verified successfully",
+//       });
+//     } else {
+//       return res.status(400).json({
+//         message: "Invalid OTP",
+//       });
+//     }
+
+//   } catch (error) {
+//     console.error("VERIFY OTP ERROR:", error);
+//     res.status(500).json({
+//       message: "Server Error",
+//     });
+//   }
+// };
 
 export { registerUser, loginUser };
