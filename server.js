@@ -17,13 +17,16 @@ import orderRoutes from "./routes/orderRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import vendorRoutes from "./routes/vendorRoutes.js";
 import recommendationRoutes from "./routes/recommendationRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 // Error Middleware
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
-import adminRoutes from "./routes/adminRoutes.js";
 
 /* ================== APP INIT ================== */
 const app = express();
+
+/* ================== TRUST PROXY (IMPORTANT FOR RENDER + GOOGLE OAUTH) ================== */
+app.set("trust proxy", 1);   // 👈 THIS FIXES http → https redirect issue
 
 /* ================== MIDDLEWARE ================== */
 
@@ -67,7 +70,6 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/vendor", vendorRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/recommendations", recommendationRoutes);
-
 
 /* ================== ERROR HANDLER ================== */
 app.use(notFound);
