@@ -2,12 +2,14 @@ import express from "express";
 import { body } from "express-validator";
 import {
   registerUser,
+  registerVendor,
   loginUser,
+  resetPasswordManually,
 } from "../controllers/userController.js";
 
 const router = express.Router();
 
-// ================= REGISTER VALIDATION =================
+/* ================= USER REGISTER ================= */
 router.post(
   "/register",
   [
@@ -29,30 +31,49 @@ router.post(
     body("phone")
       .matches(/^[0-9]{10}$/)
       .withMessage("Phone must be 10 digits"),
-
-    body("role")
-      .isIn(["user", "vendor"])
-      .withMessage("Invalid role"),
-
-    body("businessName")
-      .if(body("role").equals("vendor"))
-      .notEmpty()
-      .withMessage("Business name is required for vendors"),
-
-    body("gstNumber")
-      .if(body("role").equals("vendor"))
-      .notEmpty()
-      .withMessage("GST number is required for vendors"),
-
-    body("location")
-      .if(body("role").equals("vendor"))
-      .notEmpty()
-      .withMessage("Location is required for vendors"),
   ],
   registerUser
 );
 
-// ================= LOGIN VALIDATION =================
+/* ================= VENDOR REGISTER ================= */
+router.post(
+  "/vendors/register",
+  [
+    body("name")
+      .trim()
+      .notEmpty()
+      .withMessage("Name is required")
+      .isLength({ min: 2 })
+      .withMessage("Name must be at least 2 characters"),
+
+    body("email")
+      .isEmail()
+      .withMessage("Valid email is required"),
+
+    body("password")
+      .isLength({ min: 6 })
+      .withMessage("Password must be at least 6 characters"),
+
+    body("phone")
+      .matches(/^[0-9]{10}$/)
+      .withMessage("Phone must be 10 digits"),
+
+    body("businessName")
+      .notEmpty()
+      .withMessage("Business name is required"),
+
+    body("gstNumber")
+      .notEmpty()
+      .withMessage("GST number is required"),
+
+    body("location")
+      .notEmpty()
+      .withMessage("Location is required"),
+  ],
+  registerVendor
+);
+
+/* ================= LOGIN ================= */
 router.post(
   "/login",
   [
@@ -67,6 +88,7 @@ router.post(
   loginUser
 );
 
-router.post("/verify-otp", );
+/* ================= DEV RESET ================= */
+router.post("/reset-password-dev", resetPasswordManually);
 
 export default router;

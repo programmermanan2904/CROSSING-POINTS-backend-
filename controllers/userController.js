@@ -1,31 +1,18 @@
 import User from "../models/user.js";
 import bcrypt from "bcryptjs";
 import generateToken from "../utils/generateToken.js";
-import { validationResult } from "express-validator";
-import { sendOTP, verifyOTP } from "../utils/twilio.js";
 
-// ================= REGISTER =================
+/* ================= USER REGISTER ================= */
 const registerUser = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    const { name, email, password, phone } = req.body;
+
+    if (!name || !email || !password) {
       return res.status(400).json({
-        message: errors.array()[0].msg,
+        message: "Please provide all required fields",
       });
     }
 
-    const {
-      name,
-      email,
-      password,
-      phone,
-      role,
-      businessName,
-      gstNumber,
-      location,
-    } = req.body;
-
-    // 🔹 Check if user already exists
     const userExists = await User.findOne({ email });
 
     if (userExists) {
@@ -34,74 +21,20 @@ const registerUser = async (req, res) => {
       });
     }
 
-    // 🔹 Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 🔹 Create user (NOT VERIFIED initially)
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
       phone,
-      role,
-      businessName: role === "vendor" ? businessName : undefined,
-      gstNumber: role === "vendor" ? gstNumber : undefined,
-      location: role === "vendor" ? location : undefined,
-      isVerified: false,
+      role: "user",
+      provider: "local",
+      isVerified: true, // users auto approved
     });
 
-    // 🔐 Send OTP using Twilio
-    await sendOTP(phone);
-
-    res.status(201).json({
-      message: "OTP sent to your phone. Please verify.",
-      phone: user.phone,
-    });
-
-  } catch (error) {
-    console.error("REGISTER ERROR:", error);
-    res.status(500).json({
-      message: "Server Error",
-    });
-  }
-};
-
-// ================= LOGIN =================
-const loginUser = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        message: errors.array()[0].msg,
-      });
-    }
-
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(401).json({
-        message: "Invalid email or password",
-      });
-    }
-
-    // 🔐 Block login if not verified
-    // if (!user.isVerified) {
-    //   return res.status(403).json({
-    //     message: "Please verify your phone number first",
-    //   });
-    // }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-
-    if (!isMatch) {
-      return res.status(401).json({
-        message: "Invalid email or password",
-      });
-    }
-
-    res.status(200).json({
+    return res.status(201).json({
+      message: "User registered successfully",
       user: {
         _id: user._id,
         name: user.name,
@@ -112,47 +45,182 @@ const loginUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("LOGIN ERROR:", error);
-    res.status(500).json({
+    console.error("REGISTER USER ERROR:", error);
+    return res.status(500).json({
       message: "Server Error",
     });
   }
 };
 
-// // ================= VERIFY OTP =================
-// const verifyUserOTP = async (req, res) => {
-//   const { phone, code } = req.body;
 
-//   try {
-//     const verification = await verifyOTP(phone, code);
+/* ================= VENDOR REGISTER ================= */
+const registerVendor = async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      password,
+      phone,
+      businessName,
+      gstNumber,
+      location,
+    } = req.body;
 
-//     if (verification.status === "approved") {
-//       const user = await User.findOne({ phone });
+    if (!name || !email || !password || !businessName) {
+      return res.status(400).json({
+        message: "Please provide all required fields",
+      });
+    }
 
-//       if (!user) {
-//         return res.status(404).json({
-//           message: "User not found",
-//         });
-//       }
+    const userExists = await User.findOne({ email });
 
-//       user.isVerified = true;
-//       await user.save();
+    if (userExists) {
+      return res.status(400).json({
+        message: "Vendor already exists",
+      });
+    }
 
-//       return res.status(200).json({
-//         message: "Phone verified successfully",
-//       });
-//     } else {
-//       return res.status(400).json({
-//         message: "Invalid OTP",
-//       });
-//     }
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-//   } catch (error) {
-//     console.error("VERIFY OTP ERROR:", error);
-//     res.status(500).json({
-//       message: "Server Error",
-//     });
-//   }
-// };
+    await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      phone,
+      role: "vendor",
+      businessName,
+      gstNumber,
+      location,
+      provider: "local",
+      isVerified: false, // vendor must be approved by admin
+    });
 
-export { registerUser, loginUser };
+    return res.status(201).json({
+      message: "Vendor registered successfully. Awaiting admin approval.",
+    });
+
+  } catch (error) {
+    console.error("REGISTER VENDOR ERROR:", error);
+    return res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+
+
+/* ================= LOGIN ================= */
+const loginUser = async (req, res) => {
+  try {
+
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password are required",
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    if (user.provider === "google") {
+      return res.status(400).json({
+        message: "Please login using Google",
+      });
+    }
+
+    if (!user.password) {
+      return res.status(400).json({
+        message: "Password not set for this account",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    /* ================= VENDOR APPROVAL CHECK ================= */
+
+    if (user.role === "vendor" && user.isVerified === false) {
+      return res.status(403).json({
+        message: "Vendor account pending admin approval",
+      });
+    }
+
+    const token = generateToken(user._id);
+
+    return res.status(200).json({
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      token,
+    });
+
+  } catch (error) {
+    console.error("LOGIN ERROR:", error);
+
+    return res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+
+
+/* ================= RESET PASSWORD (DEV TOOL) ================= */
+const resetPasswordManually = async (req, res) => {
+  try {
+
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+      return res.status(400).json({
+        message: "Email and new password required",
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    user.password = hashedPassword;
+    user.provider = "local";
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Password reset successfully",
+    });
+
+  } catch (error) {
+    console.error("RESET ERROR:", error);
+
+    return res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+
+export {
+  registerUser,
+  registerVendor,
+  loginUser,
+  resetPasswordManually,
+};

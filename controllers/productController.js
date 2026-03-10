@@ -2,6 +2,12 @@ import Product from "../models/product.js";
 import { validationResult } from "express-validator";
 import cloudinary from "../config/cloudinary.js";
 
+import {
+  getTrending,
+  getSimilarProducts,
+  getRecommendations,
+} from "../services/mlService.js";
+
 /* ================= GET ALL PRODUCTS ================= */
 export const getAllProducts = async (req, res) => {
   try {
@@ -49,7 +55,6 @@ export const addProduct = async (req, res) => {
     });
 
     res.status(201).json(product);
-
   } catch (error) {
     console.error("ADD PRODUCT ERROR:", error);
     res.status(500).json({ message: error.message || "Server Error" });
@@ -89,7 +94,6 @@ export const updateProduct = async (req, res) => {
 
     await product.save();
     res.json(product);
-
   } catch (error) {
     console.error("UPDATE PRODUCT ERROR:", error);
     res.status(500).json({ message: error.message || "Server Error" });
@@ -114,9 +118,50 @@ export const deleteProduct = async (req, res) => {
     await product.deleteOne();
 
     res.json({ message: "Product deleted successfully" });
-
   } catch (error) {
     console.error("DELETE PRODUCT ERROR:", error);
     res.status(500).json({ message: error.message || "Server Error" });
+  }
+};
+
+/* ================= TRENDING PRODUCTS (ML) ================= */
+export const getTrendingProducts = async (req, res) => {
+  try {
+    const { category, n } = req.query;
+
+    const data = await getTrending(category, n);
+
+    res.json(data);
+  } catch (error) {
+    console.error("TRENDING ERROR:", error);
+    res.status(500).json({ message: "Failed to load trending products" });
+  }
+};
+
+/* ================= SIMILAR PRODUCTS (ML) ================= */
+export const getSimilar = async (req, res) => {
+  try {
+    const productId = req.params.id;
+
+    const data = await getSimilarProducts(productId);
+
+    res.json(data);
+  } catch (error) {
+    console.error("SIMILAR ERROR:", error);
+    res.status(500).json({ message: "Failed to load similar products" });
+  }
+};
+
+/* ================= RECOMMENDATIONS (ML) ================= */
+export const getRecommended = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const data = await getRecommendations(userId);
+
+    res.json(data);
+  } catch (error) {
+    console.error("RECOMMEND ERROR:", error);
+    res.status(500).json({ message: "Failed to load recommendations" });
   }
 };
